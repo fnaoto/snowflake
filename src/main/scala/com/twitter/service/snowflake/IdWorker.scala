@@ -1,27 +1,18 @@
 /** Copyright 2010-2012 Twitter, Inc.*/
 package com.twitter.service.snowflake
 
-import com.twitter.ostrich.stats.Stats
-import com.twitter.service.snowflake.gen._
-import java.util.Random
-import com.twitter.logging.Logger
-
 /**
  * An object that generates IDs.
  * This is broken into a separate class in case
  * we ever want to support multiple worker threads
  * per process
  */
-class IdWorker(val workerId: Long, val datacenterId: Long, private val reporter: Reporter, var sequence: Long = 0L)
-extends Snowflake.Iface {
-  private[this] def genCounter(agent: String) = {
-    Stats.incr("ids_generated")
-    Stats.incr("ids_generated_%s".format(agent))
-  }
-  private[this] val exceptionCounter = Stats.getCounter("exceptions")
-  private[this] val log = Logger.get
-  private[this] val rand = new Random
 
+class InvalidSystemClock(val message: String) extends Exception;
+
+class IdWorker(val workerId: Long, val datacenterId: Long, var sequence: Long = 0L,
+  val logInfo: (String => Unit) = { _: String => () },
+  val logError: (String => Unit) = { _: String => () }) {
   val twepoch = 1288834974657L
 
   private[this] val workerIdBits = 5L
@@ -39,41 +30,24 @@ extends Snowflake.Iface {
 
   // sanity check for workerId
   if (workerId > maxWorkerId || workerId < 0) {
-    exceptionCounter.incr(1)
     throw new IllegalArgumentException("worker Id can't be greater than %d or less than 0".format(maxWorkerId))
   }
 
   if (datacenterId > maxDatacenterId || datacenterId < 0) {
-    exceptionCounter.incr(1)
     throw new IllegalArgumentException("datacenter Id can't be greater than %d or less than 0".format(maxDatacenterId))
   }
 
-  log.info("worker starting. timestamp left shift %d, datacenter id bits %d, worker id bits %d, sequence bits %d, workerid %d",
-    timestampLeftShift, datacenterIdBits, workerIdBits, sequenceBits, workerId)
+  logInfo("worker starting. timestamp left shift %d, datacenter id bits %d, worker id bits %d, sequence bits %d, workerid %d".format(
+    timestampLeftShift, datacenterIdBits, workerIdBits, sequenceBits, workerId
+  ))
 
-  def get_id(useragent: String): Long = {
-    if (!validUseragent(useragent)) {
-      exceptionCounter.incr(1)
-      throw new InvalidUserAgentError
-    }
-
-    val id = nextId()
-    genCounter(useragent)
-
-    reporter.report(new AuditLogEntry(id, useragent, rand.nextLong))
-    id
-  }
-
-  def get_worker_id(): Long = workerId
-  def get_datacenter_id(): Long = datacenterId
-  def get_timestamp() = System.currentTimeMillis
+  def get_id(): Long = nextId()
 
   protected[snowflake] def nextId(): Long = synchronized {
     var timestamp = timeGen()
 
     if (timestamp < lastTimestamp) {
-      exceptionCounter.incr(1)
-      log.error("clock is moving backwards.  Rejecting requests until %d.", lastTimestamp);
+      logError("clock is moving backwards.  Rejecting requests until %d.".format(lastTimestamp));
       throw new InvalidSystemClock("Clock moved backwards.  Refusing to generate id for %d milliseconds".format(
         lastTimestamp - timestamp))
     }
@@ -90,7 +64,7 @@ extends Snowflake.Iface {
     lastTimestamp = timestamp
     ((timestamp - twepoch) << timestampLeftShift) |
       (datacenterId << datacenterIdShift) |
-      (workerId << workerIdShift) | 
+      (workerId << workerIdShift) |
       sequence
   }
 
@@ -103,11 +77,4 @@ extends Snowflake.Iface {
   }
 
   protected def timeGen(): Long = System.currentTimeMillis()
-
-  val AgentParser = """([a-zA-Z][a-zA-Z\-0-9]*)""".r
-
-  def validUseragent(useragent: String): Boolean = useragent match {
-    case AgentParser(_) => true
-    case _ => false
-  }
 }
