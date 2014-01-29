@@ -1,3 +1,8 @@
+Snowflake as library
+====
+
+XXX
+
 # Snowflake
 
 Snowflake is a network service for generating unique ID numbers at high scale with some simple guarantees.
@@ -57,6 +62,4 @@ To contribute:
 
 ## building
 
-To build and test, run `mvn test`.
-
-[![Build Status](https://secure.travis-ci.org/twitter/snowflake.png)](http://travis-ci.org/twitter/snowflake).
+To build and test, run `sbt test`.
