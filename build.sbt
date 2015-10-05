@@ -1,8 +1,8 @@
 name := "snowflake-lib"
 
-version := "1.0.2-SNAPSHOT"
+version := "1.1.0-SNAPSHOT"
 
 libraryDependencies ++= Seq(
-  "org.scala-tools.testing" % "specs_2.10" % "1.6.9",
-  "junit" % "junit" % "4.11"
+  "org.specs2" %% "specs2-core" % "3.6.4" % "test",
+  "junit" % "junit" % "4.11" % "test"
 )

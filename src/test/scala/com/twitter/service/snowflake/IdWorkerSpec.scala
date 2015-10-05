@@ -1,8 +1,8 @@
 package com.twitter.service.snowflake
 
-import org.specs._
+import org.specs2._
 
-class IdWorkerSpec extends SpecificationWithJUnit {
+class IdWorkerSpec extends mutable.Specification {
   val workerMask     = 0x000000000001F000L
   val datacenterMask = 0x00000000003E0000L
   val timestampMask  = 0xFFFFFFFFFFC00000L
@@ -17,7 +17,7 @@ class IdWorkerSpec extends SpecificationWithJUnit {
 
   class WakingIdWorker(workerId: Long, datacenterId: Long)
     extends EasyTimeWorker(workerId, datacenterId) {
-    var slept = 0
+    var slept: Int = 0
     override def tilNextMillis(lastTimestamp:Long): Long = {
       slept += 1
       super.tilNextMillis(lastTimestamp)
@@ -32,19 +32,19 @@ class IdWorkerSpec extends SpecificationWithJUnit {
     override def timeGen = time + twepoch
   }
 
-  "IdWorker" should {
+  "IdWorker" >> {
 
-    "generate an id" in {
+    "generate an id" >> {
       val s = new IdWorker(1, 1)
       val id: Long = s.nextId()
       id must be_>(0L)
     }
 
-    "properly mask worker id" in {
+    "properly mask worker id" >> {
       val workerId = 0x1F
       val datacenterId = 0
       val worker = new IdWorker(workerId, datacenterId)
-      for (i <- 1 to 1000) {
+      (1 to 100).map { _ =>
         val id = worker.nextId
         ((id & workerMask) >> 12) must be_==(workerId)
       }
@@ -60,7 +60,7 @@ class IdWorkerSpec extends SpecificationWithJUnit {
 
     "properly mask timestamp" in {
       val worker = new EasyTimeWorker(31, 31)
-      for (i <- 1 to 100) {
+      (1 to 100).map { _ =>
         val t = System.currentTimeMillis
         worker.timeMaker = (() => t)
         val id = worker.nextId
@@ -77,7 +77,7 @@ class IdWorkerSpec extends SpecificationWithJUnit {
       val endSequence = 0xFFFFFF+20
       worker.sequence = startSequence
 
-      for (i <- startSequence to endSequence) {
+      (startSequence to endSequence).map { _ =>
         val id = worker.nextId
         ((id & workerMask) >> 12) must be_==(workerId)
       }
@@ -86,10 +86,11 @@ class IdWorkerSpec extends SpecificationWithJUnit {
     "generate increasing ids" in {
       val worker = new IdWorker(1, 1)
       var lastId = 0L
-      for (i <- 1 to 100) {
+      (1 to 100).map { _ =>
         val id = worker.nextId
-        id must be_>(lastId)
+        val ret = id must be_>(lastId)
         lastId = id
+        ret
       }
     }
 
@@ -114,7 +115,7 @@ class IdWorkerSpec extends SpecificationWithJUnit {
       worker.nextId
       worker.sequence = 4095
       worker.nextId
-      worker.slept must be(1)
+      worker.slept must be_==(1)
     }
 
     "generate only unique ids" in {
