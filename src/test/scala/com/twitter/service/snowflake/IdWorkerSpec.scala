@@ -98,7 +98,7 @@ class IdWorkerSpec extends mutable.Specification {
       val worker = new IdWorker(31, 31)
       val t = System.currentTimeMillis
       for (i <- 1 to 1000000) {
-        var id = worker.nextId
+        val id = worker.nextId
         id
       }
       val t2 = System.currentTimeMillis
@@ -107,7 +107,6 @@ class IdWorkerSpec extends mutable.Specification {
     }
 
     "sleep if we would rollover twice in the same millisecond" in {
-      var queue = new scala.collection.mutable.Queue[Long]()
       val worker = new WakingIdWorker(1, 1)
       val iter = List(2L, 2L, 3L).iterator
       worker.timeMaker = (() => iter.next)
@@ -120,9 +119,9 @@ class IdWorkerSpec extends mutable.Specification {
 
     "generate only unique ids" in {
       val worker = new IdWorker(31, 31)
-      var set = new scala.collection.mutable.HashSet[Long]()
+      val set = new scala.collection.mutable.HashSet[Long]()
       val n = 2000000
-      (1 to n).foreach{i =>
+      for (i <- 1 to n) {
         val id = worker.nextId
         if (set.contains(id)) {
           println(java.lang.Long.toString(id, 2))
